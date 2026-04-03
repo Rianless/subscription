@@ -450,26 +450,64 @@ body {
 .cms-price { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'DM Mono', monospace; }
 
 /* ══════════════════════════════════════
-   MODAL
+   MODAL — 스와이프 드로어
 ══════════════════════════════════════ */
 .modal-overlay {
-  display: none; position: fixed; inset: 0;
+  position: fixed; inset: 0;
   background: rgba(0,0,0,0.6);
   backdrop-filter: blur(6px);
   z-index: 200;
+  display: flex;
   align-items: flex-end; justify-content: center;
+  /* 오버레이 자체는 항상 존재하지만 투명도/포인터로 제어 */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
 .modal {
   background: var(--surface);
   border-radius: 24px 24px 0 0;
-  padding: 24px 20px 44px;
+  padding: 12px 20px 44px;
   width: 100%; max-width: 640px;
   max-height: 92vh; overflow-y: auto;
-  animation: slideUp 0.3s cubic-bezier(0.34,1.4,0.64,1) both;
+  /* 항상 렌더되어 있고 transform으로만 위치 제어 */
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+  touch-action: none;
 }
-@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.modal-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 99px; margin: 0 auto 20px; }
+.modal-overlay.open .modal {
+  transform: translateY(0);
+}
+.modal-overlay.closing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 핸들 — 드래그 가능 영역 */
+.modal-handle-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 16px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  margin: -12px -20px 0;
+  padding: 14px 20px 16px;
+}
+.modal-handle-area:active { cursor: grabbing; }
+.modal-handle {
+  width: 36px; height: 4px;
+  background: var(--border2);
+  border-radius: 99px;
+}
+
 .modal h2 { font-size: 18px; font-weight: 800; margin-bottom: 18px; }
 .form-group { margin-bottom: 13px; }
 .form-group label { display: block; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); font-family: 'DM Mono', monospace; margin-bottom: 5px; }
@@ -601,7 +639,6 @@ body {
 
   <div class="cal-grid" id="calGrid"></div>
 
-  <!-- 날짜 클릭 시 구독 목록 -->
   <div class="cal-detail" id="calDetail">
     <div class="cal-detail-header">
       <span id="calDetailDate" class="cd-date"></span>
@@ -610,7 +647,6 @@ body {
     <div id="calDetailItems"></div>
   </div>
 
-  <!-- 이달 전체 구독 리스트 -->
   <div class="cal-month-subs">
     <div class="cms-title">이달의 결제 일정</div>
     <div id="calMonthList"></div>
@@ -618,9 +654,13 @@ body {
 </div>
 
 <!-- ══ 모달 ═════════════════════════════════════════════ -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnBg(event)">
-  <div class="modal">
-    <div class="modal-handle"></div>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalSheet">
+    <!-- 핸들 (드래그로 닫기) -->
+    <div class="modal-handle-area" id="modalHandleArea">
+      <div class="modal-handle"></div>
+    </div>
+
     <h2 id="modalTitle">새 구독 추가</h2>
 
     <div class="form-group">
@@ -680,20 +720,8 @@ const EMOJIS = ['📺','🎵','🎮','📚','☁️','🛒','🤖','💊','🏋�
 const COLORS  = ['#b8ff57','#57c8ff','#ff7eb3','#ffd166','#a29bfe','#fd79a8','#00cec9','#e17055','#6c5ce7','#00b894'];
 const USD_KRW = 1380;
 
-const DEFAULT_SUBS = [
-  { id:1,  name:'네이버멤버십', price:4900,  currency:'KRW', cycle:'monthly',   day:5,  emoji:'📦', color:'#b8ff57', active:true, memo:'' },
-  { id:2,  name:'유튜브(유독)', price:3900,  currency:'KRW', cycle:'bimonthly', day:2,  emoji:'📺', color:'#ff7eb3', active:true, memo:'2개월치 한번에' },
-  { id:3,  name:'티빙(유독)',   price:1475,  currency:'KRW', cycle:'monthly',   day:4,  emoji:'📺', color:'#57c8ff', active:true, memo:'유독 할인' },
-  { id:4,  name:'ChatGPT',     price:29000, currency:'KRW', cycle:'monthly',   day:5,  emoji:'🤖', color:'#a29bfe', active:true, memo:'' },
-  { id:5,  name:'제미나이',     price:14500, currency:'KRW', cycle:'monthly',   day:22, emoji:'🤖', color:'#ffd166', active:true, memo:'' },
-  { id:6,  name:'클로드(본계)', price:30000, currency:'KRW', cycle:'monthly',   day:11, emoji:'🤖', color:'#b8ff57', active:true, memo:'' },
-  { id:7,  name:'iCloud',      price:3300,  currency:'KRW', cycle:'monthly',   day:28, emoji:'☁️', color:'#57c8ff', active:true, memo:'' },
-  { id:8,  name:'쿠팡',        price:7890,  currency:'KRW', cycle:'monthly',   day:5,  emoji:'🛒', color:'#ffd166', active:true, memo:'' },
-  { id:9,  name:'클로드(부계)', price:11,    currency:'USD', cycle:'monthly',   day:28, emoji:'🤖', color:'#fd79a8', active:true, memo:'' },
-  { id:10, name:'넷플릭스',    price:0,     currency:'KRW', cycle:'monthly',   day:5,  emoji:'🎬', color:'#e17055', active:true, memo:'지인 계정 공유' },
-];
-
-let subs = JSON.parse(localStorage.getItem('subList') || 'null') || DEFAULT_SUBS;
+// 기본 구독 없이 빈 상태로 시작
+let subs = JSON.parse(localStorage.getItem('subList') || '[]');
 let editingId = null;
 let selectedEmoji = EMOJIS[0];
 let selectedColor = COLORS[0];
@@ -840,20 +868,17 @@ function renderCalendar() {
   const year = calYear, month = calMonth;
   document.getElementById('calTitle').textContent = `${year}년 ${month+1}월`;
 
-  // 이달 총 결제액 계산 (월환산)
   const activeSubs = subs.filter(s => s.active);
   const monthlyTotal = activeSubs.reduce((a, s) => a + toMonthlyKRW(s), 0);
   document.getElementById('calMonthTotal').textContent = Math.round(monthlyTotal).toLocaleString() + '원/월';
 
-  // 날짜별 구독 맵 만들기
-  const dayMap = {}; // day -> [sub, ...]
+  const dayMap = {};
   activeSubs.forEach(s => {
     const d = s.day;
     if (!dayMap[d]) dayMap[d] = [];
     dayMap[d].push(s);
   });
 
-  // 달력 그리드
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month + 1, 0).getDate();
   const prevLast = new Date(year, month, 0).getDate();
@@ -862,12 +887,10 @@ function renderCalendar() {
   let cells = '';
   let cellCount = 0;
 
-  // 이전 달
   for (let i = firstDay - 1; i >= 0; i--) {
     cells += `<div class="cal-cell other-month"><div class="cal-day-num">${prevLast - i}</div></div>`;
     cellCount++;
   }
-  // 이번 달
   for (let d = 1; d <= lastDate; d++) {
     const isToday = d === todayD && month === todayM && year === todayY;
     const events  = dayMap[d] || [];
@@ -881,7 +904,6 @@ function renderCalendar() {
       </div>`;
     cellCount++;
   }
-  // 다음 달
   const remain = 42 - cellCount;
   for (let d = 1; d <= remain; d++) {
     cells += `<div class="cal-cell other-month"><div class="cal-day-num">${d}</div></div>`;
@@ -890,7 +912,6 @@ function renderCalendar() {
   document.getElementById('calGrid').innerHTML = cells;
   closeCalDetail();
 
-  // 이달 결제 일정 목록 (날짜순)
   const sorted = activeSubs.slice().sort((a, b) => a.day - b.day);
   document.getElementById('calMonthList').innerHTML = sorted.map(s => `
     <div class="cms-item">
@@ -937,20 +958,105 @@ function closeCalDetail() {
   document.getElementById('calDetail').classList.remove('open');
 }
 
-/* ══ 모달 ═════════════════════════════════════════════ */
-function openModal() { document.getElementById('modalOverlay').classList.add('open'); }
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('open');
-  editingId = null;
-  document.getElementById('modalTitle').textContent = '새 구독 추가';
-  ['inputName','inputPrice','inputMemo'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('inputCurrency').value = 'KRW';
-  document.getElementById('inputCycle').value    = 'monthly';
-  document.getElementById('inputDay').value      = '';
-  selectedEmoji = EMOJIS[0]; selectedColor = COLORS[0];
-  buildEmojiGrid(); buildColorGrid();
+/* ══ 모달 — 슬라이드 드로어 ══════════════════════════════ */
+const overlay  = document.getElementById('modalOverlay');
+const sheet    = document.getElementById('modalSheet');
+const handleArea = document.getElementById('modalHandleArea');
+
+let dragStartY = 0;
+let dragCurrentY = 0;
+let isDragging = false;
+
+function openModal() {
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
-function closeModalOnBg(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+function closeModal(callback) {
+  // sheet를 명시적으로 아래로 내림
+  sheet.style.transition = 'transform 0.32s cubic-bezier(0.4, 0, 0.8, 0.2)';
+  sheet.style.transform  = 'translateY(100%)';
+  overlay.classList.add('closing');
+
+  sheet.addEventListener('transitionend', function onEnd() {
+    sheet.removeEventListener('transitionend', onEnd);
+    overlay.classList.remove('open', 'closing');
+    sheet.style.transform  = '';
+    sheet.style.transition = '';
+    document.body.style.overflow = '';
+    editingId = null;
+    document.getElementById('modalTitle').textContent = '새 구독 추가';
+    ['inputName','inputPrice','inputMemo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('inputCurrency').value = 'KRW';
+    document.getElementById('inputCycle').value    = 'monthly';
+    document.getElementById('inputDay').value      = '';
+    selectedEmoji = EMOJIS[0]; selectedColor = COLORS[0];
+    buildEmojiGrid(); buildColorGrid();
+    if (callback) callback();
+  });
+}
+
+// 오버레이 배경 클릭 → 닫기
+overlay.addEventListener('click', (e) => {
+  if (e.target === overlay) closeModal();
+});
+
+// ── 드래그 핸들 (터치) ──
+handleArea.addEventListener('touchstart', (e) => {
+  isDragging = true;
+  dragStartY = e.touches[0].clientY;
+  sheet.style.transition = 'none';
+}, { passive: true });
+
+handleArea.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+  dragCurrentY = e.touches[0].clientY;
+  const delta = Math.max(0, dragCurrentY - dragStartY); // 아래로만 허용
+  sheet.style.transform = `translateY(${delta}px)`;
+}, { passive: true });
+
+handleArea.addEventListener('touchend', () => {
+  isDragging = false;
+  sheet.style.transition = '';
+  const delta = dragCurrentY - dragStartY;
+  if (delta > 100) {
+    // 충분히 내렸으면 닫기
+    closeModal();
+  } else {
+    // 원위치
+    sheet.style.transform = '';
+  }
+  dragStartY = 0; dragCurrentY = 0;
+});
+
+// ── 드래그 핸들 (마우스) ──
+handleArea.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  dragStartY = e.clientY;
+  sheet.style.transition = 'none';
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+});
+
+function onMouseMove(e) {
+  if (!isDragging) return;
+  dragCurrentY = e.clientY;
+  const delta = Math.max(0, dragCurrentY - dragStartY);
+  sheet.style.transform = `translateY(${delta}px)`;
+}
+function onMouseUp() {
+  isDragging = false;
+  sheet.style.transition = '';
+  const delta = dragCurrentY - dragStartY;
+  if (delta > 100) {
+    closeModal();
+  } else {
+    sheet.style.transform = '';
+  }
+  dragStartY = 0; dragCurrentY = 0;
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onMouseUp);
+}
 
 function saveSubscription() {
   const name  = document.getElementById('inputName').value.trim();
@@ -967,7 +1073,9 @@ function saveSubscription() {
   } else {
     subs.push({ id:Date.now(), name, price, currency, cycle, day, emoji:selectedEmoji, color:selectedColor, active:true, memo });
   }
-  save(); renderList(); closeModal();
+  save();
+  // 저장 후 모달 내리면서 닫기, 끝나면 리스트 갱신
+  closeModal(() => renderList());
 }
 
 /* ── 이모지 / 색상 그리드 ──────────────────────────────── */
