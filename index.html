@@ -487,14 +487,18 @@ body {
 .modal {
   background: var(--surface);
   border-radius: 24px 24px 0 0;
-  padding: 12px 20px 44px;
+  padding: 12px 20px calc(44px + env(safe-area-inset-bottom));
   width: 100%; max-width: 640px;
-  max-height: 92vh; overflow-y: auto;
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   /* 항상 렌더되어 있고 transform으로만 위치 제어 */
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
-  touch-action: none;
+  touch-action: pan-y;
 }
 .modal-overlay.open .modal {
   transform: translateY(0);
@@ -515,6 +519,7 @@ body {
   -webkit-user-select: none;
   margin: -12px -20px 0;
   padding: 14px 20px 16px;
+  touch-action: none;
 }
 .modal-handle-area:active { cursor: grabbing; }
 .modal-handle {
