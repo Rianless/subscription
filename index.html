@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-theme="dark">
+<html lang="ko" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -308,6 +308,21 @@ body {
   transition: background 0.2s;
 }
 .cal-nav-btn:hover { background: var(--surface2); }
+.cal-today-btn {
+  font-size: 11px; font-weight: 700;
+  color: var(--accent2);
+  font-family: 'DM Mono', monospace;
+  background: transparent;
+  border: 1.5px solid var(--accent2);
+  border-radius: 99px;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.cal-today-btn:hover {
+  background: var(--accent2);
+  color: #fff;
+}
 .cal-month-total {
   font-size: 12px; font-weight: 700;
   color: var(--accent);
@@ -624,6 +639,7 @@ body {
     <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
     <h2 id="calTitle"></h2>
     <div class="cal-month-total" id="calMonthTotal"></div>
+    <button class="cal-today-btn" onclick="goToday()">오늘</button>
     <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
   </div>
 
@@ -716,8 +732,8 @@ body {
 
 <script>
 /* ── 상수 ──────────────────────────────────────────────── */
-const EMOJIS = ['📺','🎵','🎮','📚','☁️','🛒','🤖','💊','🏋️','🎬','📰','🎯','💳','🔒','🌐','✉️','📦','🐯','⚽','🎸','🍿','🖥️'];
-const COLORS  = ['#b8ff57','#57c8ff','#ff7eb3','#ffd166','#a29bfe','#fd79a8','#00cec9','#e17055','#6c5ce7','#00b894'];
+const EMOJIS = ['📺','🎵','🎮','📚','☁️','🛒','🤖','💊','🏋️','🎬','📰','🎯','💳','🔒','🌐','✉️','📦','🐯','⚽','⚾','🎸','🍿','🖥️'];
+const COLORS  = ['#b8ff57','#57c8ff','#ff7eb3','#ffd166','#a29bfe','#fd79a8','#00cec9','#e17055','#6c5ce7','#00b894','#ff3b3b'];
 const USD_KRW = 1380;
 
 // 기본 구독 없이 빈 상태로 시작
@@ -728,7 +744,7 @@ let selectedColor = COLORS[0];
 let calYear, calMonth;
 
 /* ── 테마 ─────────────────────────────────────────────── */
-const savedTheme = localStorage.getItem('theme') || 'dark';
+const savedTheme = localStorage.getItem('theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
 document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '🌙' : '☀️';
 
@@ -786,8 +802,21 @@ function updateSummary() {
   document.getElementById('yearlyBreak').innerHTML = hasUSD
     ? `USD 포함<br>1달러 ≈ ${USD_KRW.toLocaleString()}원 적용` : '';
 
-  const todayN = today.getDate();
-  const upcoming = subs.filter(s => s.active && s.day >= todayN && s.day <= todayN + 7);
+  // 오늘부터 7일 후까지 날짜 Set 생성 (월 말 넘어가는 경우 포함)
+  const upcomingDays = new Set();
+  for (let i = 0; i <= 7; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    upcomingDays.add(d.getDate());
+  }
+  const upcoming = subs.filter(s => s.active && upcomingDays.has(s.day))
+    .sort((a, b) => {
+      // 실제 다가오는 날짜 기준 정렬
+      const nextA = new Date(today.getFullYear(), today.getMonth(), a.day);
+      if (nextA < today) nextA.setMonth(nextA.getMonth() + 1);
+      const nextB = new Date(today.getFullYear(), today.getMonth(), b.day);
+      if (nextB < today) nextB.setMonth(nextB.getMonth() + 1);
+      return nextA - nextB;
+    });
   const upCard = document.getElementById('upcomingCard');
   if (upcoming.length) {
     upCard.style.display = '';
@@ -922,6 +951,13 @@ function renderCalendar() {
       <span class="cms-price">${priceLabel(s)}</span>
     </div>
   `).join('');
+}
+
+function goToday() {
+  calYear  = today.getFullYear();
+  calMonth = today.getMonth();
+  closeCalDetail();
+  renderCalendar();
 }
 
 function changeMonth(dir) {
