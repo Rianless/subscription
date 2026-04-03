@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구독 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e12;
+    --surface: #16161d;
+    --surface2: #1e1e28;
+    --border: rgba(255,255,255,0.07);
+    --accent: #b8ff57;
+    --accent2: #57c8ff;
+    --accent3: #ff7eb3;
+    --text: #f0f0f0;
+    --text-dim: #888;
+    --text-muted: #555;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  /* ── 헤더 ── */
+  .header {
+    padding: 48px 20px 24px;
+    position: relative;
+  }
+  .header-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 6px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .header-date {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── 요약 카드 그리드 ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 20px 20px;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-card.wide {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .summary-card .sc-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+  .summary-card .sc-value {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .summary-card .sc-value.accent { color: var(--accent); }
+  .summary-card .sc-value.accent2 { color: var(--accent2); }
+  .summary-card .sc-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .summary-card .sc-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+  }
+  .summary-card .sc-info { flex: 1; }
+  .upcoming-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,126,179,0.12);
+    border: 1px solid rgba(255,126,179,0.25);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--accent3);
+    margin-top: 8px;
+    font-family: 'DM Mono', monospace;
+  }
+  .upcoming-chip .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent3);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── 툴바 ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px 16px;
+  }
+  .toolbar-label {
+    font-size: 14px;
+    font-weight: 700;
+    flex: 1;
+  }
+  .sort-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 12px;
+    padding: 7px 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    outline: none;
+  }
+  .sort-select option { background: var(--surface2); }
+
+  /* ── 추가 버튼 ── */
+  .add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 20px 20px;
+    background: var(--accent);
+    color: #0e0e12;
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 20px rgba(184,255,87,0.25);
+  }
+  .add-btn:active { transform: scale(0.97); }
+
+  /* ── 구독 리스트 ── */
+  .list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+
+  .sub-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, opacity 0.2s;
+    animation: slideIn 0.3s ease both;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .sub-card.inactive { opacity: 0.45; }
+  .sub-card .accent-line {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; border-radius: 3px 0 0 3px;
+  }
+
+  .sub-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: var(--surface2);
+  }
+  .sub-icon img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+
+  .sub-info { flex: 1; min-width: 0; }
+  .sub-name {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sub-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 3px;
+    flex-wrap: wrap;
+  }
+  .sub-price {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+  }
+  .sub-cycle {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 99px;
+  }
+  .sub-day {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .sub-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── 토글 ── */
+  .toggle {
+    width: 44px; height: 26px;
+    background: var(--surface2);
+    border-radius: 99px;
+    position: relative;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    top: 2px; left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* 삭제 버튼 */
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: color 0.15s;
+    line-height: 1;
+  }
+  .del-btn:hover { color: #ff5c5c; }
+
+  /* ── 모달 ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    padding: 28px 20px 40px;
+    width: 100%;
+    max-width: 600px;
+    animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal-handle {
+    width: 40px; height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    margin: 0 auto 24px;
+  }
+  .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 15px;
+    padding: 13px 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+  .form-group select option { background: var(--surface2); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+  .emoji-btn {
+    aspect-ratio: 1;
+    background: var(--surface2);
+    border: 1.5px solid transparent;
+    border-radius: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .emoji-btn.selected { border-color: var(--accent); transform: scale(1.1); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-cancel {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 14px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .btn-save {
+    flex: 2;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #0e0e12;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+
+  /* 섹션 구분 */
+  .section-divider {
+    padding: 16px 20px 8px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* 연간 환산 바 */
+  .yearly-bar {
+    margin: 0 20px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .yearly-bar .yb-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 8px;
+  }
+  .yearly-bar .yb-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent2);
+    font-family: 'DM Mono', monospace;
+  }
+  .yearly-bar .yb-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* 빈 상태 */
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .es-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+  <div class="header-label">My Subscriptions</div>
+  <h1>구독 관리</h1>
+  <div class="header-date" id="headerDate"></div>
+</div>
+
+<!-- 요약 카드 -->
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="sc-label">월 총액</div>
+    <div class="sc-value accent" id="totalMonthly">0원</div>
+    <div class="sc-sub">/월</div>
+  </div>
+  <div class="summary-card">
+    <div class="sc-label">활성 구독</div>
+    <div class="sc-value accent2" id="totalActive">0개</div>
+    <div class="sc-sub">서비스</div>
+  </div>
+  <div class="summary-card wide" id="upcomingCard" style="display:none">
+    <div class="sc-icon">🔔</div>
+    <div class="sc-info">
+      <div class="sc-label">다가오는 결제</div>
+      <div id="upcomingList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 연간 환산 -->
+<div class="yearly-bar">
+  <div class="yb-label">연간 환산</div>
+  <div class="yb-value" id="totalYearly">0원</div>
+  <div class="yb-sub">1년 기준 총 지출 예상액</div>
+</div>
+
+<!-- 툴바 -->
+<div class="toolbar">
+  <div class="toolbar-label">내 구독 목록</div>
+  <select class="sort-select" id="sortSelect" onchange="renderList()">
+    <option value="order">등록순</option>
+    <option value="price-desc">금액 높은순</option>
+    <option value="price-asc">금액 낮은순</option>
+    <option value="day">결제일순</option>
+    <option value="name">이름순</option>
+  </select>
+</div>
+
+<!-- 추가 버튼 -->
+<button class="add-btn" onclick="openModal()">
+  <span style="font-size:18px">＋</span> 새 구독 추가
+</button>
+
+<!-- 구독 리스트 -->
+<div class="list" id="subList"></div>
+
+<!-- 모달 -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnBg(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modalTitle">새 구독 추가</h2>
+
+    <div class="form-group">
+      <label>서비스 이름</label>
+      <input type="text" id="inputName" placeholder="예: 넷플릭스">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>금액</label>
+        <input type="number" id="inputPrice" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>통화</label>
+        <select id="inputCurrency">
+          <option value="KRW">₩ 원</option>
+          <option value="USD">$ 달러</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>결제 주기</label>
+        <select id="inputCycle">
+          <option value="monthly">매월</option>
+          <option value="bimonthly">2개월</option>
+          <option value="quarterly">분기(3개월)</option>
+          <option value="yearly">연간</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>결제일 (일)</label>
+        <input type="number" id="inputDay" placeholder="1~31" min="1" max="31">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>아이콘 선택</label>
+      <div class="emoji-grid" id="emojiGrid"></div>
+    </div>
+
+    <div class="form-group">
+      <label>색상 태그</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="colorGrid"></div>
+    </div>
+
+    <div class="form-group">
+      <label>메모 (선택)</label>
+      <input type="text" id="inputMemo" placeholder="예: 가족 공유, 유독 할인 등">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-save" onclick="saveSubscription()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 기본 데이터 ──────────────────────────────────────────
+const EMOJIS = ['📺','🎵','🎮','📚','☁️','🛒','🤖','💊','🏋️','🎬','📰','🎯','💳','🔒','🌐','✉️','📦','🐯','⚽','🎸'];
+const COLORS = ['#b8ff57','#57c8ff','#ff7eb3','#ffd166','#a29bfe','#fd79a8','#00cec9','#e17055'];
+
+const DEFAULT_SUBS = [
+  { id: 1, name: '네이버멤버십', price: 4900, currency: 'KRW', cycle: 'monthly', day: 5,  emoji: '🅽', color: '#b8ff57', active: true, memo: '' },
+  { id: 2, name: '유튜브(유독)',  price: 3900, currency: 'KRW', cycle: 'bimonthly', day: 2, emoji: '📺', color: '#ff7eb3', active: true, memo: '2개월치 한번에' },
+  { id: 3, name: '티빙(유독)',    price: 1475, currency: 'KRW', cycle: 'monthly', day: 4,  emoji: '📺', color: '#57c8ff', active: true, memo: '유독 할인' },
+  { id: 4, name: 'ChatGPT',      price: 29000, currency: 'KRW', cycle: 'monthly', day: 5, emoji: '🤖', color: '#a29bfe', active: true, memo: '' },
+  { id: 5, name: '제미나이',      price: 14500, currency: 'KRW', cycle: 'monthly', day: 22, emoji: '🤖', color: '#ffd166', active: true, memo: '' },
+  { id: 6, name: '클로드(본계정)', price: 30000, currency: 'KRW', cycle: 'monthly', day: 11, emoji: '🤖', color: '#b8ff57', active: true, memo: '' },
+  { id: 7, name: 'iCloud',       price: 3300, currency: 'KRW', cycle: 'monthly', day: 28, emoji: '☁️', color: '#57c8ff', active: true, memo: '' },
+  { id: 8, name: '쿠팡',         price: 7890, currency: 'KRW', cycle: 'monthly', day: 5,  emoji: '🛒', color: '#ffd166', active: true, memo: '' },
+  { id: 9, name: '클로드(부계)',   price: 11, currency: 'USD',  cycle: 'monthly', day: 28, emoji: '🤖', color: '#fd79a8', active: true, memo: '' },
+  { id: 10, name: '넷플릭스',    price: 0,   currency: 'KRW', cycle: 'monthly', day: 5,  emoji: '🎬', color: '#e17055', active: true, memo: '지인 계정 공유' },
+];
+
+let subs = JSON.parse(localStorage.getItem('subList') || 'null') || DEFAULT_SUBS;
+let editingId = null;
+let selectedEmoji = EMOJIS[0];
+let selectedColor = COLORS[0];
+
+// ── 날짜 ──────────────────────────────────────────────
+function formatDate(d) {
+  const days = ['일','월','화','수','목','금','토'];
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+document.getElementById('headerDate').textContent = formatDate(new Date());
+
+// ── 저장 ──────────────────────────────────────────────
+function save() { localStorage.setItem('subList', JSON.stringify(subs)); }
+
+// ── 월 환산 금액 (KRW 기준, USD ≈ 1380) ────────────────
+const USD_KRW = 1380;
+function toMonthlyKRW(sub) {
+  if (!sub.active) return 0;
+  const base = sub.currency === 'USD' ? sub.price * USD_KRW : sub.price;
+  const divisor = { monthly: 1, bimonthly: 2, quarterly: 3, yearly: 12 }[sub.cycle] || 1;
+  return base / divisor;
+}
+
+// ── 요약 업데이트 ──────────────────────────────────────
+function updateSummary() {
+  const active = subs.filter(s => s.active);
+  const monthly = active.reduce((a, s) => a + toMonthlyKRW(s), 0);
+  document.getElementById('totalMonthly').textContent = Math.round(monthly).toLocaleString() + '원';
+  document.getElementById('totalActive').textContent = active.length + '개';
+  document.getElementById('totalYearly').textContent = Math.round(monthly * 12).toLocaleString() + '원';
+
+  // 다가오는 결제 (오늘부터 7일 이내)
+  const today = new Date().getDate();
+  const upcoming = subs.filter(s => s.active && s.day >= today && s.day <= today + 7);
+  const upCard = document.getElementById('upcomingCard');
+  if (upcoming.length) {
+    upCard.style.display = 'flex';
+    document.getElementById('upcomingList').innerHTML = upcoming.map(s => `
+      <div class="upcoming-chip"><span class="dot"></span>${s.day}일 · ${s.name} (${priceLabel(s)})</div>
+    `).join('');
+  } else {
+    upCard.style.display = 'none';
+  }
+}
+
+function priceLabel(s) {
+  if (s.currency === 'USD') return `$${s.price}`;
+  return s.price.toLocaleString() + '원';
+}
+function cycleLabel(c) {
+  return { monthly: '월', bimonthly: '2개월', quarterly: '분기', yearly: '연간' }[c] || '월';
+}
+
+// ── 리스트 렌더링 ──────────────────────────────────────
+function renderList() {
+  const sort = document.getElementById('sortSelect').value;
+  let list = [...subs];
+  if (sort === 'price-desc') list.sort((a,b) => toMonthlyKRW(b) - toMonthlyKRW(a));
+  else if (sort === 'price-asc') list.sort((a,b) => toMonthlyKRW(a) - toMonthlyKRW(b));
+  else if (sort === 'day') list.sort((a,b) => a.day - b.day);
+  else if (sort === 'name') list.sort((a,b) => a.name.localeCompare(b.name));
+
+  const el = document.getElementById('subList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div><p>아직 등록된 구독이 없어요.<br>첫 구독을 추가해보세요!</p></div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(s => `
+    <div class="sub-card ${s.active ? '' : 'inactive'}" id="card-${s.id}">
+      <div class="accent-line" style="background:${s.color}"></div>
+      <div class="sub-icon">${s.emoji}</div>
+      <div class="sub-info">
+        <div class="sub-name">${s.name}${s.memo ? ` <span style="font-size:11px;color:var(--text-muted)">${s.memo}</span>` : ''}</div>
+        <div class="sub-meta">
+          <span class="sub-price">${priceLabel(s)}</span>
+          <span class="sub-cycle">${cycleLabel(s.cycle)}</span>
+          <span class="sub-day">${s.day}일</span>
+        </div>
+      </div>
+      <div class="sub-actions">
+        <button class="del-btn" onclick="editSub(${s.id})" title="수정">✏️</button>
+        <button class="del-btn" onclick="deleteSub(${s.id})" title="삭제">🗑</button>
+        <div class="toggle ${s.active ? 'on' : ''}" onclick="toggleSub(${s.id})"></div>
+      </div>
+    </div>
+  `).join('');
+
+  updateSummary();
+}
+
+// ── 토글 / 삭제 ───────────────────────────────────────
+function toggleSub(id) {
+  const s = subs.find(x => x.id === id);
+  if (s) { s.active = !s.active; save(); renderList(); }
+}
+function deleteSub(id) {
+  if (!confirm('이 구독을 삭제할까요?')) return;
+  subs = subs.filter(x => x.id !== id);
+  save(); renderList();
+}
+function editSub(id) {
+  const s = subs.find(x => x.id === id);
+  if (!s) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = '구독 수정';
+  document.getElementById('inputName').value = s.name;
+  document.getElementById('inputPrice').value = s.price;
+  document.getElementById('inputCurrency').value = s.currency;
+  document.getElementById('inputCycle').value = s.cycle;
+  document.getElementById('inputDay').value = s.day;
+  document.getElementById('inputMemo').value = s.memo || '';
+  selectedEmoji = s.emoji;
+  selectedColor = s.color;
+  buildEmojiGrid(); buildColorGrid();
+  openModal();
+}
+
+// ── 모달 ──────────────────────────────────────────────
+function openModal() { document.getElementById('modalOverlay').classList.add('open'); }
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '새 구독 추가';
+  ['inputName','inputPrice','inputMemo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('inputCurrency').value = 'KRW';
+  document.getElementById('inputCycle').value = 'monthly';
+  document.getElementById('inputDay').value = '';
+  selectedEmoji = EMOJIS[0]; selectedColor = COLORS[0];
+  buildEmojiGrid(); buildColorGrid();
+}
+function closeModalOnBg(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+function saveSubscription() {
+  const name = document.getElementById('inputName').value.trim();
+  const price = parseFloat(document.getElementById('inputPrice').value) || 0;
+  const currency = document.getElementById('inputCurrency').value;
+  const cycle = document.getElementById('inputCycle').value;
+  const day = parseInt(document.getElementById('inputDay').value) || 1;
+  const memo = document.getElementById('inputMemo').value.trim();
+  if (!name) { alert('서비스 이름을 입력해주세요.'); return; }
+
+  if (editingId) {
+    const s = subs.find(x => x.id === editingId);
+    Object.assign(s, { name, price, currency, cycle, day, emoji: selectedEmoji, color: selectedColor, memo });
+  } else {
+    subs.push({ id: Date.now(), name, price, currency, cycle, day, emoji: selectedEmoji, color: selectedColor, active: true, memo });
+  }
+  save(); renderList(); closeModal();
+}
+
+// ── 이모지 / 색상 그리드 ────────────────────────────────
+function buildEmojiGrid() {
+  document.getElementById('emojiGrid').innerHTML = EMOJIS.map(e => `
+    <button class="emoji-btn ${e === selectedEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}')">${e}</button>
+  `).join('');
+}
+function selectEmoji(e) { selectedEmoji = e; buildEmojiGrid(); }
+
+function buildColorGrid() {
+  document.getElementById('colorGrid').innerHTML = COLORS.map(c => `
+    <div onclick="selectColor('${c}')" style="
+      width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;
+      border: 3px solid ${c === selectedColor ? '#fff' : 'transparent'};
+      box-shadow: ${c === selectedColor ? '0 0 0 2px '+c : 'none'};
+      transition: transform 0.15s;
+      transform: ${c === selectedColor ? 'scale(1.2)' : 'scale(1)'}
+    "></div>
+  `).join('');
+}
+function selectColor(c) { selectedColor = c; buildColorGrid(); }
+
+// ── 초기화 ────────────────────────────────────────────
+buildEmojiGrid(); buildColorGrid(); renderList();
+</script>
+</body>
+</html>
